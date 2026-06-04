@@ -15,7 +15,7 @@ import tkinter.scrolledtext as scrolledtext
 class App:
     def __init__(self, root):
         self.root = root
-        self.root.title("Excel to Word Template Mail-Merge Tool")
+        self.root.title("Excel to Word Parser V.1.2")
         self.root.geometry("850x750")
         self.root.minsize(800, 650)
         
@@ -35,8 +35,9 @@ class App:
         # Available Excel columns (populated after loading Excel)
         self.excel_columns = []
         
-        # Dynamic mapping list: contains dicts with {"word_field_var": StringVar, "excel_col_var": StringVar, "frame": Frame}
-        self.mappings = []
+        # Dynamic mapping lists
+        self.mappings = []       # Word to Excel mappings
+        self.custom_fills = []   # Word to Custom Static Constant fills
         
         self.build_ui()
         self.load_default_configuration()
@@ -50,7 +51,7 @@ class App:
         self.root.update_idletasks()
 
     def build_ui(self):
-        # Create Main Notebook (Tabs) or split pane
+        # Create Main Frame
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
         
@@ -81,9 +82,20 @@ class App:
         config_frame = ttk.Frame(middle_paned, padding="5")
         middle_paned.add(config_frame, weight=1)
         
-        # Right side mapping list frame
-        mapping_lf = ttk.LabelFrame(middle_paned, text=" 2. Word-to-Excel Field Mappings ", padding="10")
-        middle_paned.add(mapping_lf, weight=1)
+        # Right side Notebook (Tabs) for Mappings
+        right_notebook_frame = ttk.Frame(middle_paned, padding="5")
+        middle_paned.add(right_notebook_frame, weight=1)
+        
+        self.mappings_notebook = ttk.Notebook(right_notebook_frame)
+        self.mappings_notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Tab 1: Excel Mapping Panel
+        self.tab_excel = ttk.Frame(self.mappings_notebook, padding="10")
+        self.mappings_notebook.add(self.tab_excel, text=" Excel Mappings ")
+        
+        # Tab 2: Custom Constant Fill Panel
+        self.tab_custom = ttk.Frame(self.mappings_notebook, padding="10")
+        self.mappings_notebook.add(self.tab_custom, text=" Custom Constant Fills ")
         
         # --- Config elements (Left Panel) ---
         options_lf = ttk.LabelFrame(config_frame, text=" Options ", padding="10")
@@ -139,31 +151,54 @@ class App:
         size_spin = ttk.Spinbox(options_lf, from_=6, to=72, textvariable=self.font_size, width=6)
         size_spin.grid(row=4, column=1, sticky=tk.W, padx=5, pady=5)
         
-        # --- Mapping list elements (Right Panel) ---
-        control_mapping_frame = ttk.Frame(mapping_lf)
+        # --- TAB 1: Excel Mapping Elements ---
+        control_mapping_frame = ttk.Frame(self.tab_excel)
         control_mapping_frame.pack(fill=tk.X, pady=5)
         
         ttk.Button(control_mapping_frame, text="Add Field Mapping", command=self.add_mapping_row).pack(side=tk.LEFT, padx=5)
         ttk.Button(control_mapping_frame, text="Clear All", command=self.clear_mappings).pack(side=tk.LEFT, padx=5)
         
-        # Headers for mapping
-        header_frame = ttk.Frame(mapping_lf)
-        header_frame.pack(fill=tk.X, pady=2)
-        ttk.Label(header_frame, text="Word Template Field Label", font="-weight bold", width=25).pack(side=tk.LEFT, padx=5)
-        ttk.Label(header_frame, text="Excel Column", font="-weight bold", width=25).pack(side=tk.LEFT, padx=5)
+        # Headers for Excel Mapping
+        header_frame_excel = ttk.Frame(self.tab_excel)
+        header_frame_excel.pack(fill=tk.X, pady=2)
+        ttk.Label(header_frame_excel, text="Word Template Field Label", font="-weight bold", width=25).pack(side=tk.LEFT, padx=5)
+        ttk.Label(header_frame_excel, text="Excel Column", font="-weight bold", width=25).pack(side=tk.LEFT, padx=5)
         
-        # Container frame with a scrollbar for dynamic mapping rows
-        self.canvas = tk.Canvas(mapping_lf, borderwidth=0, highlightthickness=0)
-        self.scroll_frame = ttk.Frame(self.canvas)
-        self.scrollbar = ttk.Scrollbar(mapping_lf, orient="vertical", command=self.canvas.yview)
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        # Scrollable container for Excel Mappings
+        self.canvas_excel = tk.Canvas(self.tab_excel, borderwidth=0, highlightthickness=0)
+        self.scroll_frame_excel = ttk.Frame(self.canvas_excel)
+        self.scrollbar_excel = ttk.Scrollbar(self.tab_excel, orient="vertical", command=self.canvas_excel.yview)
+        self.canvas_excel.configure(yscrollcommand=self.scrollbar_excel.set)
         
-        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        self.canvas.create_window((0,0), window=self.scroll_frame, anchor="nw", tags="self.scroll_frame")
+        self.scrollbar_excel.pack(side=tk.RIGHT, fill=tk.Y)
+        self.canvas_excel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.canvas_excel.create_window((0,0), window=self.scroll_frame_excel, anchor="nw", tags="self.scroll_frame_excel")
+        self.scroll_frame_excel.bind("<Configure>", lambda event, canvas=self.canvas_excel: self.on_frame_configure(canvas))
         
-        self.scroll_frame.bind("<Configure>", lambda event, canvas=self.canvas: self.on_frame_configure(canvas))
+        # --- TAB 2: Custom Constant Fill Elements ---
+        control_custom_frame = ttk.Frame(self.tab_custom)
+        control_custom_frame.pack(fill=tk.X, pady=5)
         
+        ttk.Button(control_custom_frame, text="Add Custom Fill", command=self.add_custom_fill_row).pack(side=tk.LEFT, padx=5)
+        ttk.Button(control_custom_frame, text="Clear All", command=self.clear_custom_fills).pack(side=tk.LEFT, padx=5)
+        
+        # Headers for Custom Fills
+        header_frame_custom = ttk.Frame(self.tab_custom)
+        header_frame_custom.pack(fill=tk.X, pady=2)
+        ttk.Label(header_frame_custom, text="Word Template Field Label", font="-weight bold", width=25).pack(side=tk.LEFT, padx=5)
+        ttk.Label(header_frame_custom, text="Custom Text Value", font="-weight bold", width=25).pack(side=tk.LEFT, padx=5)
+        
+        # Scrollable container for Custom Fills
+        self.canvas_custom = tk.Canvas(self.tab_custom, borderwidth=0, highlightthickness=0)
+        self.scroll_frame_custom = ttk.Frame(self.canvas_custom)
+        self.scrollbar_custom = ttk.Scrollbar(self.tab_custom, orient="vertical", command=self.canvas_custom.yview)
+        self.canvas_custom.configure(yscrollcommand=self.scrollbar_custom.set)
+        
+        self.scrollbar_custom.pack(side=tk.RIGHT, fill=tk.Y)
+        self.canvas_custom.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.canvas_custom.create_window((0,0), window=self.scroll_frame_custom, anchor="nw", tags="self.scroll_frame_custom")
+        self.scroll_frame_custom.bind("<Configure>", lambda event, canvas=self.canvas_custom: self.on_frame_configure(canvas))
+
         # --- Process and Terminal Log Output Panel ---
         action_frame = ttk.Frame(main_frame)
         action_frame.pack(fill=tk.X, pady=5)
@@ -250,8 +285,8 @@ class App:
     def load_default_configuration(self):
         """Pre-populates the paths and mappings to establish default configurations on launch."""
         # Check if workspace template files exist, and pre-fill them
-        default_template = "untitled.docx"
-        default_excel = "untitled.xlsx"
+        default_template = "test.docx"
+        default_excel = "test.xlsx"
         default_out = "Filled_Reports"
 
         if os.path.exists(default_template):
@@ -262,21 +297,30 @@ class App:
         
         self.output_dir.set(os.path.abspath(default_out))
         
-        # Configure initial target fields
-        defaults = [
+        # Configure initial target fields (Excel Mappings)
+        defaults_excel = [
             ("Project Name", "Project name"),
             ("Service Contract No.", "Contract No."),
             ("Customer Name", "End User"),
             ("Service Start date", "Service start date"),
             ("Service End date", "Service end date")
         ]
-        
-        for word, excel in defaults:
+        for word, excel in defaults_excel:
             self.add_mapping_row(word, excel)
+            
+        # Configure initial custom fills (Constant Values)
+        defaults_custom = [
+            ("H3C Service Manager", "Mr John Doe"),
+            ("H3C Project Manager", "Mrs Jane Smith"),
+            ("Delivery Engineer", "Alex Tech"),
+            ("Service Site", "Jakarta Headquarters")
+        ]
+        for word, const_val in defaults_custom:
+            self.add_custom_fill_row(word, const_val)
 
     def add_mapping_row(self, initial_word="", initial_excel=""):
-        """Creates a dynamic grid row on the mapping panel frame."""
-        row_frame = ttk.Frame(self.scroll_frame)
+        """Creates a dynamic grid row on the Excel mapping panel frame."""
+        row_frame = ttk.Frame(self.scroll_frame_excel)
         row_frame.pack(fill=tk.X, pady=2, expand=True)
         
         word_var = tk.StringVar(value=initial_word)
@@ -311,6 +355,42 @@ class App:
             m["frame"].destroy()
         self.mappings.clear()
 
+    def add_custom_fill_row(self, initial_word="", initial_text=""):
+        """Creates a dynamic grid row on the Custom Fills panel frame."""
+        row_frame = ttk.Frame(self.scroll_frame_custom)
+        row_frame.pack(fill=tk.X, pady=2, expand=True)
+        
+        word_var = tk.StringVar(value=initial_word)
+        text_var = tk.StringVar(value=initial_text)
+        
+        word_entry = ttk.Entry(row_frame, textvariable=word_var, width=25)
+        word_entry.pack(side=tk.LEFT, padx=5)
+        
+        text_entry = ttk.Entry(row_frame, textvariable=text_var, width=25)
+        text_entry.pack(side=tk.LEFT, padx=5)
+        
+        del_btn = ttk.Button(row_frame, text="X", width=3, command=lambda f=row_frame: self.remove_custom_fill_row(f))
+        del_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.custom_fills.append({
+            "word_var": word_var,
+            "text_var": text_var,
+            "frame": row_frame
+        })
+
+    def remove_custom_fill_row(self, frame_to_remove):
+        """Finds and destroys a dynamic custom fill frame reference."""
+        for cf in list(self.custom_fills):
+            if cf["frame"] == frame_to_remove:
+                cf["frame"].destroy()
+                self.custom_fills.remove(cf)
+                break
+
+    def clear_custom_fills(self):
+        for cf in list(self.custom_fills):
+            cf["frame"].destroy()
+        self.custom_fills.clear()
+
     def start_processing(self):
         """Initiates parser data structures and handles runtime validation execution."""
         excel_fp = self.excel_path.get()
@@ -334,21 +414,29 @@ class App:
                 messagebox.showerror("Error", f"Could not create output directory:\n{e}")
                 return
 
-        # Prepare execution mapping configurations
+        # Prepare Excel-to-Word mapping configurations
         field_mapping = {}
         for m in self.mappings:
             word_lbl = m["word_var"].get().strip()
             excel_col = m["excel_var"].get().strip()
             if word_lbl and excel_col:
-                # Key is the normalized search phrase
                 norm_lbl = re.sub(r'[^a-zA-Z0-9]', '', word_lbl).lower()
                 field_mapping[norm_lbl] = {
                     "word_original": word_lbl,
                     "excel_original": excel_col
                 }
 
-        if not field_mapping:
-            messagebox.showerror("Error", "Please configure at least one active field mapping.")
+        # Prepare Custom Constant mapping configurations
+        custom_mapping = {}
+        for cf in self.custom_fills:
+            word_lbl = cf["word_var"].get().strip()
+            const_val = cf["text_var"].get().strip()
+            if word_lbl:
+                norm_lbl = re.sub(r'[^a-zA-Z0-9]', '', word_lbl).lower()
+                custom_mapping[norm_lbl] = const_val
+
+        if not field_mapping and not custom_mapping:
+            messagebox.showerror("Error", "Please configure at least one Excel mapping or Custom Constant Fill.")
             return
 
         self.process_btn.configure(state='disabled')
@@ -432,7 +520,7 @@ class App:
             self.log(f"Processing row {i + 1}/{total_rows} -> Outputting to: {output_filename}")
             
             try:
-                self.fill_document_template(template_fp, row, field_mapping, date_fmt, output_filepath, font_name_val, font_size_val)
+                self.fill_document_template(template_fp, row, field_mapping, custom_mapping, date_fmt, output_filepath, font_name_val, font_size_val)
                 processed_count += 1
             except Exception as e:
                 self.log(f"Critical execution error on row {i + 1}: {e}")
@@ -441,7 +529,7 @@ class App:
         messagebox.showinfo("Success", f"Mail Merge Completed Successfully.\nGenerated {processed_count} Word document files.")
         self.process_btn.configure(state='normal')
 
-    def fill_document_template(self, doc_path, row_data, field_mapping, date_fmt, output_path, font_name, font_size):
+    def fill_document_template(self, doc_path, row_data, field_mapping, custom_mapping, date_fmt, output_path, font_name, font_size):
         """Processes and merges Word document formatting layout configurations."""
         doc = Document(doc_path)
         
@@ -477,6 +565,10 @@ class App:
                 val_str = str(raw_val).strip() if pd.notna(raw_val) else ""
             
             formatted_row_values[norm_lbl] = val_str
+
+        # Add custom constant fills (these do not rely on dynamic Excel column values)
+        for norm_lbl, const_val in custom_mapping.items():
+            formatted_row_values[norm_lbl] = const_val
 
         # 1. Process all tables in the document
         for table in doc.tables:
