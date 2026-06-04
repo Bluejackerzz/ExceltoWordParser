@@ -15,7 +15,7 @@ import tkinter.scrolledtext as scrolledtext
 class App:
     def __init__(self, root):
         self.root = root
-        self.root.title("Excel to Word Template Mail-Merge Tool")
+        self.root.title("Excel to Word Parser V.1.2.1")
         self.root.geometry("850x750")
         self.root.minsize(800, 650)
         
