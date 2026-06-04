@@ -15,7 +15,7 @@ import tkinter.scrolledtext as scrolledtext
 class App:
     def __init__(self, root):
         self.root = root
-        self.root.title("Excel to Word Parser V.1.2")
+        self.root.title("Excel to Word Template Mail-Merge Tool")
         self.root.geometry("850x750")
         self.root.minsize(800, 650)
         
@@ -197,7 +197,7 @@ class App:
         self.scrollbar_custom.pack(side=tk.RIGHT, fill=tk.Y)
         self.canvas_custom.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.canvas_custom.create_window((0,0), window=self.scroll_frame_custom, anchor="nw", tags="self.scroll_frame_custom")
-        self.scroll_frame_custom.bind("<Configure>", lambda event, canvas=self.canvas_custom: self.on_frame_configure(canvas))
+        self.canvas_custom.bind("<Configure>", lambda event, canvas=self.canvas_custom: self.on_frame_configure(canvas))
 
         # --- Process and Terminal Log Output Panel ---
         action_frame = ttk.Frame(main_frame)
@@ -270,9 +270,7 @@ class App:
             
             # Update file naming selector options
             self.filename_combo['values'] = self.excel_columns
-            if "Project name" in self.excel_columns:
-                self.filename_column.set("Project name")
-            elif len(self.excel_columns) > 0:
+            if len(self.excel_columns) > 0:
                 self.filename_column.set(self.excel_columns[0])
                 
             # Update all active dynamic dropdown structures
@@ -283,37 +281,26 @@ class App:
             messagebox.showerror("Excel Error", f"Unable to read file headers:\n{e}")
 
     def load_default_configuration(self):
-        """Pre-populates the paths and mappings to establish default configurations on launch."""
-        # Check if workspace template files exist, and pre-fill them
-        default_template = "test.docx"
-        default_excel = "test.xlsx"
-        default_out = "Filled_Reports"
-
-        if os.path.exists(default_template):
-            self.template_path.set(os.path.abspath(default_template))
-        if os.path.exists(default_excel):
-            self.excel_path.set(os.path.abspath(default_excel))
-            self.load_excel_headers(os.path.abspath(default_excel))
-        
+        """Initializes generic default configurations on launch for a semi-public template release."""
+        default_out = "Output_Reports"
         self.output_dir.set(os.path.abspath(default_out))
         
-        # Configure initial target fields (Excel Mappings)
+        # Pre-populate with generic default Excel mappings as initial examples
         defaults_excel = [
-            ("Project Name", "Project name"),
-            ("Service Contract No.", "Contract No."),
-            ("Customer Name", "End User"),
-            ("Service Start date", "Service start date"),
-            ("Service End date", "Service end date")
+            ("No.", "ID"),
+            ("Name", "Full Name"),
+            ("Date", "Registration Date"),
+            ("Age", "Age")
         ]
         for word, excel in defaults_excel:
             self.add_mapping_row(word, excel)
             
-        # Configure initial custom fills (Constant Values)
+        # Pre-populate with generic default custom static constant values as initial examples
         defaults_custom = [
-            ("H3C Service Manager", "Mr John Doe"),
-            ("H3C Project Manager", "Mrs Jane Smith"),
-            ("Delivery Engineer", "Alex Tech"),
-            ("Service Site", "Jakarta Headquarters")
+            ("Organization", "My Company Ltd"),
+            ("Location", "Main Campus"),
+            ("Authorized Officer", "John Doe"),
+            ("Department", "Operations")
         ]
         for word, const_val in defaults_custom:
             self.add_custom_fill_row(word, const_val)
@@ -554,9 +541,9 @@ class App:
                         elif date_fmt == "YYYY-MM-DD":
                             format_str = "%Y-%m-%d"
                         elif date_fmt == "DD/MM/YYYY":
-                            format_str = "%d/%m/%y"
+                            format_str = "%d/%m/%Y"
                         elif date_fmt == "MM/DD/YYYY":
-                            format_str = "%m/%d/%y"
+                            format_str = "%m/%d/%Y"
                         
                         val_str = dt.strftime(format_str)
                     except Exception:
@@ -605,7 +592,22 @@ class App:
                                     p = target_cell.add_paragraph()
                                     run = p.add_run(val_str)
                                     apply_font_formatting(run, font_name, font_size)
-                                break
+                            else:
+                                # Fallback for single-cell rows where the input space is below the label in the same cell
+                                target_cell = unique_cells[cell_idx]
+                                if len(target_cell.paragraphs) > 1:
+                                    p = target_cell.paragraphs[1]
+                                    p.text = ""
+                                    run = p.add_run(val_str)
+                                    apply_font_formatting(run, font_name, font_size)
+                                    for extra_p in target_cell.paragraphs[2:]:
+                                        p_element = extra_p._element
+                                        p_element.getparent().remove(p_element)
+                                else:
+                                    p = target_cell.add_paragraph()
+                                    run = p.add_run(val_str)
+                                    apply_font_formatting(run, font_name, font_size)
+                            break
 
         # 2. Process paragraphs in main body (if containing templates in double brackets, e.g. {{Project name}})
         for paragraph in doc.paragraphs:
