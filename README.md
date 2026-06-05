@@ -4,7 +4,7 @@ This is my own project that I create, to boost productivity for a case where the
 
 Instead of filling it one by one, by hands-by seeing all of those Buzzy-Eyed countless list of documents, you can just do it automatically using this parser.
 
----
+
 
 ## Features
 
@@ -12,7 +12,7 @@ Instead of filling it one by one, by hands-by seeing all of those Buzzy-Eyed cou
 * Compatible with .XLSX
 * Can be used with all purpose of excel layout
 
----
+
 
 ## Layout Examples
 
@@ -30,10 +30,8 @@ You can also add or fill a name, if the Layout/template needs a Constant Naming 
   <img src="https://iili.io/Cf29M74.md.png" alt="Uploaded Image" width="500">
 </p>
 
----
 
 ## Later Version
 
 * CSV and other filetypes
 
----
