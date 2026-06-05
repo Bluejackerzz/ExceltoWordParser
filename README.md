@@ -4,4 +4,13 @@ instead of fill it one by one, by hands-by seeing all of those Buzzy-Eyed countl
 using this parser.
 
 
-for the ui, and how to use it Showcase is coming soon
+Easy to use, Compatible with .XLSX and can be use with all purpose of excel layout
+<img src="https://iili.io/Cfdb2te.md.png" alt="Uploaded Image" width="500">
+
+You can also, add or fill a name, if the Layout/template needs a Constant Naming while having a tons of rows of data
+<img src="https://iili.io/Cf29M74.md.png" alt="Uploaded Image" width="500"> 
+
+Later Version : 
+CSV and other filetypes
+
+
